@@ -1,0 +1,56 @@
+## Prediction Assignment Writeup
+
+After loading the datasets, a random forest model is used for the prediction.
+
+```{r message=FALSE}
+raw_training <- read.csv('pml-training.csv')
+raw_testing <- read.csv('pml-testing.csv')
+
+library(caret)
+set.seed(1234)
+trainingIndex <- createDataPartition(raw_training$classe, list=FALSE, p=.9)
+training = raw_training[trainingIndex,]
+testing = raw_training[-trainingIndex,]
+
+library(caret)
+nzv <- nearZeroVar(training)
+
+training <- training[-nzv]
+testing <- testing[-nzv]
+raw_testing <- raw_testing[-nzv]
+```
+
+```{r echo=FALSE}
+num_features_idx = which(lapply(training,class) %in% c('numeric')  )
+
+preModel <- preProcess(training[,num_features_idx], method=c('knnImpute'))
+
+ptraining <- cbind(training$classe, predict(preModel, training[,num_features_idx]))
+ptesting <- cbind(testing$classe, predict(preModel, testing[,num_features_idx]))
+prtesting <- predict(preModel, raw_testing[,num_features_idx])
+
+names(ptraining)[1] <- 'classe'
+names(ptesting)[1] <- 'classe'
+```
+
+```{r message=FALSE}
+library(randomForest)
+rf_model  <- randomForest(classe ~ ., ptraining, ntree=500, mtry=32)
+```
+
+```{r}
+training_pred <- predict(rf_model, ptraining) 
+print(confusionMatrix(training_pred, ptraining$classe))
+```
+
+### Out-of-sample accuracy
+```{r}
+testing_pred <- predict(rf_model, ptesting) 
+```
+
+Confusion Matrix: 
+```{r echo=FALSE}
+print(confusionMatrix(testing_pred, ptesting$classe))
+```
+
+The cross validation accuracy is greater than 99%.
